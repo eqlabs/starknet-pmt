@@ -1,6 +1,8 @@
 mod node;
 mod tree;
 
+pub use tree::Tree;
+
 #[derive(Clone, Debug)]
 pub enum Node<F: Felt> {
     Binary(BinaryNode<F>),
@@ -58,6 +60,7 @@ impl Felt for stark_hash::StarkHash {
     }
 }
 
+#[cfg(test)]
 macro_rules! starkhash {
     ($hex:expr) => {{
         let bytes = hex_literal::hex!($hex);
@@ -67,4 +70,5 @@ macro_rules! starkhash {
         }
     }};
 }
+#[cfg(test)]
 pub(crate) use starkhash;
