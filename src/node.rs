@@ -125,12 +125,14 @@ impl<F: Felt> BinaryNode<F> {
             return;
         }
 
-        let left = match self.left.borrow().hash() {
+        let left = self.left.borrow();
+        let left = match left.hash() {
             Some(hash) => hash,
             None => unreachable!("subtrees have to be commited first"),
         };
 
-        let right = match self.right.borrow().hash() {
+        let right = self.right.borrow();
+        let right = match right.hash() {
             Some(hash) => hash,
             None => unreachable!("subtrees have to be commited first"),
         };
@@ -181,12 +183,12 @@ impl<F: Felt> Node<F> {
         }
     }
 
-    pub fn hash(&self) -> Option<F> {
+    pub fn hash(&self) -> Option<&F> {
         match self {
-            Node::Unresolved(hash) => Some(*hash),
-            Node::Binary(binary) => binary.hash,
-            Node::Edge(edge) => edge.hash,
-            Node::Leaf(value) => Some(*value),
+            Node::Unresolved(hash) => Some(hash),
+            Node::Binary(binary) => binary.hash.as_ref(),
+            Node::Edge(edge) => edge.hash.as_ref(),
+            Node::Leaf(value) => Some(value),
         }
     }
 }
@@ -221,7 +223,8 @@ impl<F: Felt> EdgeNode<F> {
             return;
         }
 
-        let child = match self.child.borrow().hash() {
+        let child = self.child.borrow();
+        let child = match child.hash() {
             Some(hash) => hash,
             None => unreachable!("subtree has to be commited before"),
         };
