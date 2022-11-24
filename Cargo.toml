@@ -10,3 +10,4 @@ bitvec = "0.20.4"
 
 [dev-dependencies]
 stark_hash = { git = "https://github.com/eqlabs/pathfinder" }
+hex-literal = "0.3"

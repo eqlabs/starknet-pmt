@@ -236,6 +236,10 @@ impl<F: Felt> EdgeNode<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::starkhash;
+
+    use bitvec::bitvec;
+    use stark_hash::StarkHash;
 
     mod direction {
         use super::*;
@@ -266,8 +270,6 @@ mod tests {
 
     mod binary {
         use super::*;
-        use crate::starkhash;
-        use bitvec::bitvec;
 
         #[test]
         fn direction() {
@@ -339,8 +341,6 @@ mod tests {
 
     mod edge {
         use super::*;
-        use crate::starkhash;
-        use bitvec::bitvec;
 
         #[test]
         fn hash() {
@@ -371,7 +371,6 @@ mod tests {
 
         mod path_matches {
             use super::*;
-            use crate::starkhash;
 
             #[test]
             fn full() {
