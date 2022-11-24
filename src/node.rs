@@ -3,52 +3,52 @@
 //!
 //! For more information about how these Starknet trees are structured, see
 //! [`MerkleTree`](super::merkle_tree::MerkleTree).
+use crate::Felt;
 
 use std::{cell::RefCell, rc::Rc};
 
 use bitvec::{order::Msb0, prelude::BitVec, slice::BitSlice};
-use stark_hash::{stark_hash, StarkHash};
 
 /// A node in a Binary Merkle-Patricia Tree graph.
 #[derive(Clone, Debug, PartialEq)]
-pub enum Node {
+pub enum Node<F: Felt> {
     /// A node that has not been fetched from storage yet.
     ///
     /// As such, all we know is its hash.
-    Unresolved(StarkHash),
+    Unresolved(F),
     /// A branch node with exactly two children.
-    Binary(BinaryNode),
+    Binary(BinaryNode<F>),
     /// Describes a path connecting two other nodes.
-    Edge(EdgeNode),
+    Edge(EdgeNode<F>),
     /// A leaf node that contains a value.
-    Leaf(StarkHash),
+    Leaf(F),
 }
 
 /// Describes the [Node::Binary] variant.
 #[derive(Clone, Debug, PartialEq)]
-pub struct BinaryNode {
+pub struct BinaryNode<F: Felt> {
     /// The hash of this node. Is [None] if the node
     /// has not yet been committed.
-    pub hash: Option<StarkHash>,
+    pub hash: Option<F>,
     /// The height of this node in the tree.
     pub height: usize,
     /// [Left](Direction::Left) child.
-    pub left: Rc<RefCell<Node>>,
+    pub left: Rc<RefCell<Node<F>>>,
     /// [Right](Direction::Right) child.
-    pub right: Rc<RefCell<Node>>,
+    pub right: Rc<RefCell<Node<F>>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct EdgeNode {
+pub struct EdgeNode<F: Felt> {
     /// The hash of this node. Is [None] if the node
     /// has not yet been committed.
-    pub hash: Option<StarkHash>,
+    pub hash: Option<F>,
     /// The starting height of this node in the tree.
     pub height: usize,
     /// The path this edge takes.
     pub path: BitVec<Msb0, u8>,
     /// The child of this node.
-    pub child: Rc<RefCell<Node>>,
+    pub child: Rc<RefCell<Node<F>>>,
 }
 
 /// Describes the direction a child of a [BinaryNode] may have.
@@ -93,7 +93,7 @@ impl From<Direction> for bool {
     }
 }
 
-impl BinaryNode {
+impl<F: Felt> BinaryNode<F> {
     /// Maps the key's bit at the binary node's height to a [Direction].
     ///
     /// This can be used to check which direction the key descibes in the context
@@ -107,7 +107,7 @@ impl BinaryNode {
     ///
     /// [Left]: Direction::Left
     /// [Right]: Direction::Right
-    pub fn get_child(&self, direction: Direction) -> Rc<RefCell<Node>> {
+    pub fn get_child(&self, direction: Direction) -> Rc<RefCell<Node<F>>> {
         match direction {
             Direction::Left => self.left.clone(),
             Direction::Right => self.right.clone(),
@@ -135,11 +135,11 @@ impl BinaryNode {
             None => unreachable!("subtrees have to be commited first"),
         };
 
-        self.hash = Some(stark_hash(left, right));
+        self.hash = Some(F::hash(&left, &right));
     }
 }
 
-impl Node {
+impl<F: Felt> Node<F> {
     /// Convenience function which sets the inner node's hash to [None], if
     /// applicable.
     ///
@@ -158,7 +158,7 @@ impl Node {
     /// This can occur for the root node in an empty graph.
     pub fn is_empty(&self) -> bool {
         match self {
-            Node::Unresolved(hash) => hash == &StarkHash::ZERO,
+            Node::Unresolved(hash) => hash.is_zero(),
             _ => false,
         }
     }
@@ -167,21 +167,21 @@ impl Node {
         matches!(self, Node::Binary(..))
     }
 
-    pub fn as_binary(&self) -> Option<&BinaryNode> {
+    pub fn as_binary(&self) -> Option<&BinaryNode<F>> {
         match self {
             Node::Binary(binary) => Some(binary),
             _ => None,
         }
     }
 
-    pub fn as_edge(&self) -> Option<&EdgeNode> {
+    pub fn as_edge(&self) -> Option<&EdgeNode<F>> {
         match self {
             Node::Edge(edge) => Some(edge),
             _ => None,
         }
     }
 
-    pub fn hash(&self) -> Option<StarkHash> {
+    pub fn hash(&self) -> Option<F> {
         match self {
             Node::Unresolved(hash) => Some(*hash),
             Node::Binary(binary) => binary.hash,
@@ -191,7 +191,7 @@ impl Node {
     }
 }
 
-impl EdgeNode {
+impl<F: Felt> EdgeNode<F> {
     /// Returns true if the edge node's path matches the same path given by the key.
     pub fn path_matches(&self, key: &BitSlice<Msb0, u8>) -> bool {
         self.path == key[self.height..self.height + self.path.len()]
@@ -226,13 +226,9 @@ impl EdgeNode {
             None => unreachable!("subtree has to be commited before"),
         };
 
-        let path = StarkHash::from_bits(&self.path).unwrap();
-        let mut length = [0; 32];
-        // Safe as len() is guaranteed to be <= 251
-        length[31] = self.path.len() as u8;
+        let path = F::from_bits(&self.path);
 
-        let length = StarkHash::from_be_bytes(length).unwrap();
-        let hash = stark_hash(child, path) + length;
+        let hash = F::hash(&child, &path).add(self.path.len() as u8);
         self.hash = Some(hash);
     }
 }
